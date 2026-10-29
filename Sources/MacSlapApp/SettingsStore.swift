@@ -63,6 +63,8 @@ final class SettingsStore {
     var hapticFeedbackEnabled: Bool { didSet { defaults.set(hapticFeedbackEnabled, forKey: Key.haptic) } }
     var usbMoanerEnabled: Bool { didSet { defaults.set(usbMoanerEnabled, forKey: Key.usbMoaner) } }
     var usbMoanerVolume: Float { didSet { defaults.set(usbMoanerVolume, forKey: Key.usbMoanerVolume) } }
+    var loginSoundEnabled: Bool { didSet { defaults.set(loginSoundEnabled, forKey: Key.loginSound) } }
+    var loginSoundVolume: Float { didSet { defaults.set(loginSoundVolume, forKey: Key.loginSoundVolume) } }
     var lidSoundEnabled: Bool { didSet { defaults.set(lidSoundEnabled, forKey: Key.lidSound) } }
     var lidSoundVolume: Float { didSet { defaults.set(lidSoundVolume, forKey: Key.lidSoundVolume) } }
 
@@ -105,6 +107,8 @@ final class SettingsStore {
         hapticFeedbackEnabled = d.object(forKey: Key.haptic) as? Bool ?? true
         usbMoanerEnabled = d.object(forKey: Key.usbMoaner) as? Bool ?? false
         usbMoanerVolume = d.object(forKey: Key.usbMoanerVolume) as? Float ?? 0.8
+        loginSoundEnabled = d.object(forKey: Key.loginSound) as? Bool ?? true
+        loginSoundVolume = d.object(forKey: Key.loginSoundVolume) as? Float ?? 0.8
         lidSoundEnabled = d.object(forKey: Key.lidSound) as? Bool ?? true
         lidSoundVolume = d.object(forKey: Key.lidSoundVolume) as? Float ?? 0.8
 
@@ -193,6 +197,8 @@ final class SettingsStore {
         static let usbMoaner = "usbMoanerEnabled"
         static let usbMoanerVolume = "usbMoanerVolume"
         static let lidSound = "lidSoundEnabled"
+        static let loginSound = "loginSoundEnabled"
+        static let loginSoundVolume = "loginSoundVolume"
         static let lidSoundVolume = "lidSoundVolume"
         static let screenShake = "screenShakeEnabled"
         static let brightness = "brightnessFlashEnabled"

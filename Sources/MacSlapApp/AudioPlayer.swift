@@ -13,6 +13,7 @@ final class AudioPlayer {
     private var announcerTiers: [[AVAudioPlayer]] = []
     private var lidPlayers: [AVAudioPlayer] = []
     private var usbPlayers: [AVAudioPlayer] = []
+    private var loginPlayers: [AVAudioPlayer] = []
 
     /// The pack the user picked.
     private(set) var selectedPack: VoicePack = .sexy
@@ -47,13 +48,16 @@ final class AudioPlayer {
 
         let lidFiles = library.lidOpenFiles
         let usbFiles = library.usbFiles
+        let loginFiles = library.loginFiles
         loadQueue.async { [weak self] in
             let lid = lidFiles.compactMap(AudioPlayer.makePlayer)
             let usb = usbFiles.compactMap(AudioPlayer.makePlayer)
+            let login = loginFiles.compactMap(AudioPlayer.makePlayer)
             DispatchQueue.main.async { [weak self] in
                 guard let self, self.loadGeneration == generation else { return }
                 self.lidPlayers = lid
                 self.usbPlayers = usb
+                self.loginPlayers = login
             }
         }
 
@@ -130,6 +134,12 @@ final class AudioPlayer {
     /// No-op when there are no "lid_*" files, so the feature is opt-in by file.
     func playLidOpen(baseVolume: Float) {
         guard let player = lidPlayers.randomElement() else { return }
+        start(player, volume: baseVolume)
+    }
+
+    /// No-op when there are no "login_*" files.
+    func playLogin(baseVolume: Float) {
+        guard let player = loginPlayers.randomElement() else { return }
         start(player, volume: baseVolume)
     }
 

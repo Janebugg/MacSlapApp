@@ -14,6 +14,7 @@ final class MenuController: NSObject, NSMenuDelegate {
     private var flashRevert: DispatchWorkItem?
     private var volumeLabel: NSTextField?
     private var lidVolumeLabel: NSTextField?
+    private var loginVolumeLabel: NSTextField?
     private var usbVolumeLabel: NSTextField?
 
     private static let idleEmoji = "👋"
@@ -65,6 +66,7 @@ final class MenuController: NSObject, NSMenuDelegate {
         menu.removeAllItems()
         volumeLabel = nil
         lidVolumeLabel = nil
+        loginVolumeLabel = nil
         usbVolumeLabel = nil
         if settings.snoozeUntil != nil && !settings.isSnoozed { settings.snoozeUntil = nil }
 
@@ -185,6 +187,24 @@ final class MenuController: NSObject, NSMenuDelegate {
         menu.addItem(submenu("Cooldown: \(currentCooldown?.displayName ?? "Custom")", cooldown))
 
         addLidSoundItems()
+        addLoginSoundItems()
+    }
+
+    private func addLoginSoundItems() {
+        let login = toggle("Login Sound", settings.loginSoundEnabled, #selector(toggleLoginSound))
+        let count = controller.library.loginFiles.count
+        login.badge = count > 0 ? NSMenuItemBadge(count: count) : NSMenuItemBadge(string: "Add login_ files")
+        menu.addItem(login)
+        guard settings.loginSoundEnabled, count > 0 else { return }
+
+        let volume = sliderItem(label: volumeText(settings.loginSoundVolume),
+                                value: Double(settings.loginSoundVolume),
+                                action: #selector(loginVolumeChanged(_:)))
+        loginVolumeLabel = volume.label
+        menu.addItem(volume.item)
+        let test = action("Test Login Sound", #selector(testLoginSound))
+        test.indentationLevel = 1
+        menu.addItem(test)
     }
 
     private func addLidSoundItems() {
@@ -369,7 +389,7 @@ final class MenuController: NSObject, NSMenuDelegate {
         NSApp.activate()
         let panel = NSOpenPanel()
         panel.title = "Choose a folder of sounds"
-        panel.message = "Files are matched by prefix: sexy_01.mp3, punch_3.wav, goat_a.m4a, 1_1.mp3 (combo announcer), lid_open.mp3 (lid), usb_plug.mp3 (USB moaner)…"
+        panel.message = "Files are matched by prefix: sexy_01.mp3, punch_3.wav, goat_a.m4a, 1_1.mp3 (combo announcer), lid_open.mp3 (lid), login_hi.mp3 (login), usb_plug.mp3 (USB moaner)…"
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
@@ -389,6 +409,19 @@ final class MenuController: NSObject, NSMenuDelegate {
     @objc private func volumeChanged(_ sender: NSSlider) {
         settings.volume = Float(sender.doubleValue)
         volumeLabel?.stringValue = volumeText(settings.volume)
+    }
+
+    @objc private func toggleLoginSound() {
+        settings.loginSoundEnabled.toggle()
+    }
+
+    @objc private func loginVolumeChanged(_ sender: NSSlider) {
+        settings.loginSoundVolume = Float(sender.doubleValue)
+        loginVolumeLabel?.stringValue = volumeText(settings.loginSoundVolume)
+    }
+
+    @objc private func testLoginSound() {
+        controller.testLoginSound()
     }
 
     @objc private func toggleLidSound() {

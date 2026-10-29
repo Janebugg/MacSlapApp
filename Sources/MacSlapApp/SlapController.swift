@@ -12,6 +12,7 @@ final class SlapController {
     let accelerometer = AccelerometerReader()
     let usbMonitor = USBMonitor()
     let chassisMonitor = ChassisMonitor()
+    let sessionMonitor = SessionMonitor()
     let screenFlash = ScreenFlash()
     let screenShaker = ScreenShaker()
     let brightnessFlash = BrightnessFlash()
@@ -67,6 +68,10 @@ final class SlapController {
         chassisMonitor.onEvent = { [weak self] reason in
             self?.quietWindow.start(reason: reason)
         }
+        sessionMonitor.onLogin = { [weak self] _ in
+            guard let self, self.isActive, self.settings.loginSoundEnabled else { return }
+            self.audioPlayer.playLogin(baseVolume: self.settings.loginSoundVolume)
+        }
         chassisMonitor.onLidOpened = { [weak self] in
             guard let self, self.isActive, self.settings.lidSoundEnabled else { return }
             log("Lid opened")
@@ -86,12 +91,14 @@ final class SlapController {
         // Runs even with the moaner off: its events also open the quiet window.
         usbMonitor.start()
         chassisMonitor.start()
+        sessionMonitor.start()
     }
 
     func shutdown() {
         accelerometer.stop()
         usbMonitor.stop()
         chassisMonitor.stop()
+        sessionMonitor.stop()
         hapticFeedback.shutdown()
     }
 
@@ -148,6 +155,10 @@ final class SlapController {
 
     func testUSBSound() {
         audioPlayer.playUSB(baseVolume: settings.usbMoanerVolume)
+    }
+
+    func testLoginSound() {
+        audioPlayer.playLogin(baseVolume: settings.loginSoundVolume)
     }
 
     func testLidSound() {

@@ -118,7 +118,7 @@ final class SoundLibrary {
 
         let summary = VoicePack.filePacks.map { "\($0.displayName)=\(count(for: $0))" }.joined(separator: " ")
         let sources = contributing.isEmpty ? "no folders" : contributing.map(\.path).joined(separator: ", ")
-        log("Sounds scanned from \(sources): \(summary) combo=\(comboAnnouncerCount) lid=\(lidOpenFiles.count) usb=\(usbFiles.count)")
+        log("Sounds scanned from \(sources): \(summary) combo=\(comboAnnouncerCount) lid=\(lidOpenFiles.count) usb=\(usbFiles.count) login=\(loginFiles.count)")
     }
 
     func files(for pack: VoicePack) -> [URL] {
@@ -144,6 +144,9 @@ final class SoundLibrary {
 
     /// "lid_*" files, played when the lid opens regardless of the selected pack.
     var lidOpenFiles: [URL] { filesByPrefix["lid"] ?? [] }
+
+    /// "login_*" files, played on login, unlock and switching back to this account.
+    var loginFiles: [URL] { filesByPrefix["login"] ?? [] }
 
     /// "usb_*" files for the USB moaner; without them it falls back to the voice pack.
     var usbFiles: [URL] { filesByPrefix["usb"] ?? [] }
