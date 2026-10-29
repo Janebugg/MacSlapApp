@@ -60,6 +60,7 @@ Sound files are matched by filename prefix:
 | `yamete_` | Yamete (escalates) |
 | `goat_` | Goat |
 | `1_` … `9_` | Combo announcer, one tier per number |
+| `lid_` | Played when the lid opens, whatever pack is selected |
 
 Examples: `sexy_01.mp3`, `punch_5.wav`, `goat_scream.m4a`, `3_1.mp3`. Supported formats: mp3, wav, m4a, aac, aiff, caf.
 

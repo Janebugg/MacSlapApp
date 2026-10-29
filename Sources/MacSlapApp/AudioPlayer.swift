@@ -11,6 +11,7 @@ final class AudioPlayer {
 
     private var players: [AVAudioPlayer] = []
     private var announcerTiers: [[AVAudioPlayer]] = []
+    private var lidPlayers: [AVAudioPlayer] = []
 
     /// The pack the user picked.
     private(set) var selectedPack: VoicePack = .sexy
@@ -42,6 +43,15 @@ final class AudioPlayer {
         escalationScore = 0
         loadGeneration += 1
         let generation = loadGeneration
+
+        let lidFiles = library.lidOpenFiles
+        loadQueue.async { [weak self] in
+            let loaded = lidFiles.compactMap(AudioPlayer.makePlayer)
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.loadGeneration == generation else { return }
+                self.lidPlayers = loaded
+            }
+        }
 
         let files = library.files(for: pack)
         activePack = (pack == .robot || !files.isEmpty) ? pack : .robot
@@ -111,6 +121,12 @@ final class AudioPlayer {
                 start(announcer, volume: baseVolume * 0.7)
             }
         }
+    }
+
+    /// No-op when there are no "lid_*" files, so the feature is opt-in by file.
+    func playLidOpen(baseVolume: Float) {
+        guard let player = lidPlayers.randomElement() else { return }
+        start(player, volume: baseVolume)
     }
 
     /// Play a random sound for USB events (no escalation)

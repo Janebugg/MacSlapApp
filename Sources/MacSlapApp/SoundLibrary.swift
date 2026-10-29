@@ -118,7 +118,7 @@ final class SoundLibrary {
 
         let summary = VoicePack.filePacks.map { "\($0.displayName)=\(count(for: $0))" }.joined(separator: " ")
         let sources = contributing.isEmpty ? "no folders" : contributing.map(\.path).joined(separator: ", ")
-        log("Sounds scanned from \(sources): \(summary) combo=\(comboAnnouncerCount)")
+        log("Sounds scanned from \(sources): \(summary) combo=\(comboAnnouncerCount) lid=\(lidOpenFiles.count)")
     }
 
     func files(for pack: VoicePack) -> [URL] {
@@ -141,6 +141,9 @@ final class SoundLibrary {
     }
 
     var comboAnnouncerCount: Int { comboAnnouncerTiers().reduce(0) { $0 + $1.count } }
+
+    /// "lid_*" files, played when the lid opens regardless of the selected pack.
+    var lidOpenFiles: [URL] { filesByPrefix["lid"] ?? [] }
 
     private static func systemSounds() -> [URL] {
         let entries = (try? FileManager.default.contentsOfDirectory(

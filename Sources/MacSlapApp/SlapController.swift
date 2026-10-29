@@ -64,6 +64,11 @@ final class SlapController {
         chassisMonitor.onEvent = { [weak self] reason in
             self?.quietWindow.start(reason: reason)
         }
+        chassisMonitor.onLidOpened = { [weak self] in
+            guard let self, self.isActive else { return }
+            log("Lid opened")
+            self.audioPlayer.playLidOpen(baseVolume: self.settings.volume)
+        }
     }
 
     /// Enabled and not snoozed.
