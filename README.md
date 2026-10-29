@@ -2,7 +2,7 @@
 
 Slap your MacBook and it screams back. Free, open source, no license keys.
 
-Built by reverse-engineering [SlapMac](https://slapmac.com/) and studying [taigrr/spank](https://github.com/taigrr/spank), then rewritten from scratch in Swift with extra features on top: trackpad haptics, screen shake, backlight flashes, combo announcers, and a USB moaner.
+Built by reverse-engineering [SlapMac](https://slapmac.com/) then rewritten from scratch in Swift with extra features on top: trackpad haptics, screen shake, backlight flashes, combo announcers, and a USB moaner.
 
 
 
