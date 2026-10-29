@@ -226,11 +226,8 @@ Tests/SlapCoreTests/        synthetic slap/typing signals
 probe/                      standalone sensor diagnostics
 ```
 
-## Credits
 
-- Inspired by [SlapMac](https://slapmac.com/) by tonnoz
-- Accelerometer approach from [taigrr/spank](https://github.com/taigrr/spank) and [olvvier/apple-silicon-accelerometer](https://github.com/olvvier/apple-silicon-accelerometer)
-- Driver wake sequence debugging by [@godigi](https://github.com/godigi) ([#2](https://github.com/AbdullahFID/MacSlapApp/issues/2))
+
 
 ## License
 
