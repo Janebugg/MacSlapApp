@@ -11,6 +11,7 @@ final class SlapController {
     let audioPlayer: AudioPlayer
     let accelerometer = AccelerometerReader()
     let usbMonitor = USBMonitor()
+    let chassisMonitor = ChassisMonitor()
     let screenFlash = ScreenFlash()
     let screenShaker = ScreenShaker()
     let brightnessFlash = BrightnessFlash()
@@ -18,6 +19,7 @@ final class SlapController {
 
     private let detector: SlapDetector
     private var lastSlapTime: Date = .distantPast
+    private var quietWindow = QuietWindow(duration: 3)
 
     /// Fired on the main thread after a slap has been handled.
     var onSlap: ((SlapEvent) -> Void)?
@@ -54,8 +56,13 @@ final class SlapController {
         }
 
         usbMonitor.onUSBEvent = { [weak self] in
-            guard let self, self.settings.usbMoanerEnabled, self.isActive else { return }
+            guard let self else { return }
+            self.quietWindow.start(reason: "usb")
+            guard self.settings.usbMoanerEnabled, self.isActive else { return }
             self.audioPlayer.playRandom(baseVolume: self.settings.volume)
+        }
+        chassisMonitor.onEvent = { [weak self] reason in
+            self?.quietWindow.start(reason: reason)
         }
     }
 
@@ -68,14 +75,15 @@ final class SlapController {
         } else {
             log("Starting disabled — sensor stays off until re-enabled")
         }
-        if settings.usbMoanerEnabled {
-            usbMonitor.start()
-        }
+        // Runs even with the moaner off: its events also open the quiet window.
+        usbMonitor.start()
+        chassisMonitor.start()
     }
 
     func shutdown() {
         accelerometer.stop()
         usbMonitor.stop()
+        chassisMonitor.stop()
         hapticFeedback.shutdown()
     }
 
@@ -90,7 +98,6 @@ final class SlapController {
 
     func setUSBMoaner(_ enabled: Bool) {
         settings.usbMoanerEnabled = enabled
-        if enabled { usbMonitor.start() } else { usbMonitor.stop() }
     }
 
     func snooze(_ option: SnoozeOption) {
@@ -140,6 +147,11 @@ final class SlapController {
     private func handleSlap(_ event: SlapEvent, isTest: Bool) {
         if !isTest {
             guard isActive else { return }
+            if quietWindow.isQuiet() {
+                log("Ignored \(event.severity.rawValue) amp=\(String(format: "%.3f", event.magnitude))g " +
+                    "after \(quietWindow.reason ?? "event")")
+                return
+            }
             // Enforce user-facing cooldown
             let now = Date()
             guard now.timeIntervalSince(lastSlapTime) >= settings.cooldownInterval else { return }
