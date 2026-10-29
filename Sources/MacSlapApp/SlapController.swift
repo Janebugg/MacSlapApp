@@ -59,7 +59,7 @@ final class SlapController {
             guard let self else { return }
             self.quietWindow.start(reason: "usb")
             guard self.settings.usbMoanerEnabled, self.isActive else { return }
-            self.audioPlayer.playRandom(baseVolume: self.settings.volume)
+            self.audioPlayer.playUSB(baseVolume: self.settings.usbMoanerVolume)
         }
         chassisMonitor.onEvent = { [weak self] reason in
             self?.quietWindow.start(reason: reason)
@@ -141,6 +141,10 @@ final class SlapController {
         brightnessFlash.intensityMultiplier = settings.brightnessFlashIntensity * 2.0
         screenFlash.intensityMultiplier = settings.screenFlashIntensity * 2.0
         hapticFeedback.intensityMultiplier = settings.hapticIntensity * 2.0
+    }
+
+    func testUSBSound() {
+        audioPlayer.playUSB(baseVolume: settings.usbMoanerVolume)
     }
 
     func testLidSound() {

@@ -14,6 +14,7 @@ final class MenuController: NSObject, NSMenuDelegate {
     private var flashRevert: DispatchWorkItem?
     private var volumeLabel: NSTextField?
     private var lidVolumeLabel: NSTextField?
+    private var usbVolumeLabel: NSTextField?
 
     private static let idleEmoji = "👋"
     private static let slapEmoji = "💥"
@@ -64,6 +65,7 @@ final class MenuController: NSObject, NSMenuDelegate {
         menu.removeAllItems()
         volumeLabel = nil
         lidVolumeLabel = nil
+        usbVolumeLabel = nil
         if settings.snoozeUntil != nil && !settings.isSnoozed { settings.snoozeUntil = nil }
 
         if let release = updates.available {
@@ -251,7 +253,20 @@ final class MenuController: NSObject, NSMenuDelegate {
                                     action: #selector(brightnessIntensityChanged(_:))).item)
         }
 
-        menu.addItem(toggle("USB Moaner", settings.usbMoanerEnabled, #selector(toggleUSBMoaner)))
+        let usb = toggle("USB Moaner", settings.usbMoanerEnabled, #selector(toggleUSBMoaner))
+        let usbCount = controller.library.usbFiles.count
+        usb.badge = usbCount > 0 ? NSMenuItemBadge(count: usbCount) : NSMenuItemBadge(string: "Voice pack")
+        menu.addItem(usb)
+        if settings.usbMoanerEnabled {
+            let volume = sliderItem(label: volumeText(settings.usbMoanerVolume),
+                                    value: Double(settings.usbMoanerVolume),
+                                    action: #selector(usbVolumeChanged(_:)))
+            usbVolumeLabel = volume.label
+            menu.addItem(volume.item)
+            let test = action("Test USB Sound", #selector(testUSBSound))
+            test.indentationLevel = 1
+            menu.addItem(test)
+        }
     }
 
     private func helpItem() -> NSMenuItem {
@@ -354,7 +369,7 @@ final class MenuController: NSObject, NSMenuDelegate {
         NSApp.activate()
         let panel = NSOpenPanel()
         panel.title = "Choose a folder of sounds"
-        panel.message = "Files are matched by prefix: sexy_01.mp3, punch_3.wav, goat_a.m4a, 1_1.mp3 (combo announcer), lid_open.mp3 (lid)…"
+        panel.message = "Files are matched by prefix: sexy_01.mp3, punch_3.wav, goat_a.m4a, 1_1.mp3 (combo announcer), lid_open.mp3 (lid), usb_plug.mp3 (USB moaner)…"
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
@@ -421,6 +436,15 @@ final class MenuController: NSObject, NSMenuDelegate {
 
     @objc private func toggleUSBMoaner() {
         controller.setUSBMoaner(!settings.usbMoanerEnabled)
+    }
+
+    @objc private func usbVolumeChanged(_ sender: NSSlider) {
+        settings.usbMoanerVolume = Float(sender.doubleValue)
+        usbVolumeLabel?.stringValue = volumeText(settings.usbMoanerVolume)
+    }
+
+    @objc private func testUSBSound() {
+        controller.testUSBSound()
     }
 
     @objc private func hapticIntensityChanged(_ sender: NSSlider) {

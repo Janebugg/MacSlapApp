@@ -12,6 +12,7 @@ final class AudioPlayer {
     private var players: [AVAudioPlayer] = []
     private var announcerTiers: [[AVAudioPlayer]] = []
     private var lidPlayers: [AVAudioPlayer] = []
+    private var usbPlayers: [AVAudioPlayer] = []
 
     /// The pack the user picked.
     private(set) var selectedPack: VoicePack = .sexy
@@ -45,11 +46,14 @@ final class AudioPlayer {
         let generation = loadGeneration
 
         let lidFiles = library.lidOpenFiles
+        let usbFiles = library.usbFiles
         loadQueue.async { [weak self] in
-            let loaded = lidFiles.compactMap(AudioPlayer.makePlayer)
+            let lid = lidFiles.compactMap(AudioPlayer.makePlayer)
+            let usb = usbFiles.compactMap(AudioPlayer.makePlayer)
             DispatchQueue.main.async { [weak self] in
                 guard let self, self.loadGeneration == generation else { return }
-                self.lidPlayers = loaded
+                self.lidPlayers = lid
+                self.usbPlayers = usb
             }
         }
 
@@ -129,8 +133,15 @@ final class AudioPlayer {
         start(player, volume: baseVolume)
     }
 
-    /// Play a random sound for USB events (no escalation)
-    func playRandom(baseVolume: Float) {
+    func playUSB(baseVolume: Float) {
+        if let player = usbPlayers.randomElement() {
+            start(player, volume: baseVolume)
+        } else {
+            playRandom(baseVolume: baseVolume)
+        }
+    }
+
+    private func playRandom(baseVolume: Float) {
         if activePack == .robot {
             robot.speak(intensity: 0.5, streak: 1, volume: baseVolume)
             return

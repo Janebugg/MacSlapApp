@@ -61,6 +61,7 @@ Sound files are matched by filename prefix:
 | `goat_` | Goat |
 | `1_` … `9_` | Combo announcer, one tier per number |
 | `lid_` | Played when the lid opens, whatever pack is selected. On/off, volume and a test button under **Lid Open Sound** in the menu |
+| `usb_` | Played by the USB Moaner when a device is plugged in or out. Without these it plays from the selected voice pack. Volume and a test button appear under **USB Moaner** when it is on |
 
 Examples: `sexy_01.mp3`, `punch_5.wav`, `goat_scream.m4a`, `3_1.mp3`. Supported formats: mp3, wav, m4a, aac, aiff, caf.
 
