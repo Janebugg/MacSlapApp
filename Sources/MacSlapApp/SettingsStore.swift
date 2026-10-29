@@ -62,6 +62,8 @@ final class SettingsStore {
     var brightnessFlashEnabled: Bool { didSet { defaults.set(brightnessFlashEnabled, forKey: Key.brightness) } }
     var hapticFeedbackEnabled: Bool { didSet { defaults.set(hapticFeedbackEnabled, forKey: Key.haptic) } }
     var usbMoanerEnabled: Bool { didSet { defaults.set(usbMoanerEnabled, forKey: Key.usbMoaner) } }
+    var lidSoundEnabled: Bool { didSet { defaults.set(lidSoundEnabled, forKey: Key.lidSound) } }
+    var lidSoundVolume: Float { didSet { defaults.set(lidSoundVolume, forKey: Key.lidSoundVolume) } }
 
     var shakeIntensity: Double { didSet { defaults.set(shakeIntensity, forKey: Key.shakeIntensity) } }
     var brightnessFlashIntensity: Double { didSet { defaults.set(brightnessFlashIntensity, forKey: Key.brightnessIntensity) } }
@@ -101,6 +103,8 @@ final class SettingsStore {
         brightnessFlashEnabled = d.object(forKey: Key.brightness) as? Bool ?? false
         hapticFeedbackEnabled = d.object(forKey: Key.haptic) as? Bool ?? true
         usbMoanerEnabled = d.object(forKey: Key.usbMoaner) as? Bool ?? false
+        lidSoundEnabled = d.object(forKey: Key.lidSound) as? Bool ?? true
+        lidSoundVolume = d.object(forKey: Key.lidSoundVolume) as? Float ?? 0.8
 
         shakeIntensity = d.object(forKey: Key.shakeIntensity) as? Double ?? 0.7
         brightnessFlashIntensity = d.object(forKey: Key.brightnessIntensity) as? Double ?? 0.5
@@ -185,6 +189,8 @@ final class SettingsStore {
         static let showCount = "showCountInMenuBar"
         static let screenFlash = "screenFlashEnabled"
         static let usbMoaner = "usbMoanerEnabled"
+        static let lidSound = "lidSoundEnabled"
+        static let lidSoundVolume = "lidSoundVolume"
         static let screenShake = "screenShakeEnabled"
         static let brightness = "brightnessFlashEnabled"
         static let haptic = "hapticFeedbackEnabled"

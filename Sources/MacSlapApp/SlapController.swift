@@ -65,9 +65,9 @@ final class SlapController {
             self?.quietWindow.start(reason: reason)
         }
         chassisMonitor.onLidOpened = { [weak self] in
-            guard let self, self.isActive else { return }
+            guard let self, self.isActive, self.settings.lidSoundEnabled else { return }
             log("Lid opened")
-            self.audioPlayer.playLidOpen(baseVolume: self.settings.volume)
+            self.audioPlayer.playLidOpen(baseVolume: self.settings.lidSoundVolume)
         }
     }
 
@@ -141,6 +141,10 @@ final class SlapController {
         brightnessFlash.intensityMultiplier = settings.brightnessFlashIntensity * 2.0
         screenFlash.intensityMultiplier = settings.screenFlashIntensity * 2.0
         hapticFeedback.intensityMultiplier = settings.hapticIntensity * 2.0
+    }
+
+    func testLidSound() {
+        audioPlayer.playLidOpen(baseVolume: settings.lidSoundVolume)
     }
 
     /// Plays every enabled reaction at a medium-hard intensity without touching stats.
