@@ -55,11 +55,14 @@ final class SlapController {
             self?.onStateChange?()
         }
 
-        usbMonitor.onUSBEvent = { [weak self] in
+        usbMonitor.onPlugged = { [weak self] in
             guard let self else { return }
             self.quietWindow.start(reason: "usb")
             guard self.settings.usbMoanerEnabled, self.isActive else { return }
             self.audioPlayer.playUSB(baseVolume: self.settings.usbMoanerVolume)
+        }
+        usbMonitor.onUnplugged = { [weak self] in
+            self?.quietWindow.start(reason: "usb")
         }
         chassisMonitor.onEvent = { [weak self] reason in
             self?.quietWindow.start(reason: reason)

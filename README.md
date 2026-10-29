@@ -61,7 +61,7 @@ Sound files are matched by filename prefix:
 | `goat_` | Goat |
 | `1_` … `9_` | Combo announcer, one tier per number |
 | `lid_` | Played when the lid opens, whatever pack is selected. On/off, volume and a test button under **Lid Open Sound** in the menu |
-| `usb_` | Played by the USB Moaner when a device is plugged in or out. Without these it plays from the selected voice pack. Volume and a test button appear under **USB Moaner** when it is on |
+| `usb_` | Played by the USB Moaner when a device is plugged in. Without these it plays from the selected voice pack. Volume and a test button appear under **USB Moaner** when it is on |
 
 Examples: `sexy_01.mp3`, `punch_5.wav`, `goat_scream.m4a`, `3_1.mp3`. Supported formats: mp3, wav, m4a, aac, aiff, caf.
 
@@ -73,7 +73,7 @@ Where MacSlapApp looks, in order:
 
 After adding files, use **Voice Pack → Reload Sounds**. The Voice Pack menu shows how many files each pack found. If the selected pack has none, Robot Voice fills in until you add some.
 
-Record your own, grab free sound effects, whatever you like.
+Record your own, grab free sound effects (for example from [Pixabay](https://pixabay.com/)), whatever you like.
 
 **Using SlapMac's sounds:** if you own [SlapMac](https://slapmac.com/), you can copy its 130+ sound files for personal use:
 

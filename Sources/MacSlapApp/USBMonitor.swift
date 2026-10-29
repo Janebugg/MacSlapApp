@@ -1,137 +1,132 @@
 import Foundation
 import IOKit
 import IOKit.usb
-import AppKit
 
-/// Monitors USB/Thunderbolt device plug/unplug events.
-/// Uses multiple strategies for Apple Silicon USB-C compatibility:
-/// 1. IOKit publish/terminated notifications for IOUSBHostDevice
-/// 2. NSWorkspace DiskMount/Unmount notifications
-/// 3. Polling IOServiceGetMatchingServices as a fallback
+/// Monitors USB/Thunderbolt device plug/unplug via IOKit publish/terminated
+/// notifications for IOUSBHostDevice.
 ///
-/// One physical plug usually trips several of these (and publishes a device
-/// plus its interfaces), so events are debounced into a single reaction.
+/// Some devices (docks, monitors, phones) drop off the bus and re-enumerate
+/// every few seconds while plugged in. A device that reappears shortly after
+/// it left, or leaves shortly after it appeared, is treated as that flapping
+/// rather than as a real plug or unplug.
 @MainActor
 final class USBMonitor {
-    private static let debounceInterval: TimeInterval = 1.5
+    private struct Device {
+        let key: String
+        let name: String
+    }
+
+    private static let flapWindow: TimeInterval = 15
+    /// A dock publishes several devices at once; that is still one plug.
+    private static let debounceInterval: TimeInterval = 2
 
     private var notifyPort: IONotificationPortRef?
     private var iterators: [io_iterator_t] = []
-    private var isRunning = false
-    private var pollTimer: Timer?
-    private var lastDeviceCount: Int = 0
-    private var lastEventTime: Date = .distantPast
+    private var publishedAt: [String: Date] = [:]
+    private var removedAt: [String: Date] = [:]
+    private var lastPlug: Date = .distantPast
+    private var lastUnplug: Date = .distantPast
 
-    var onUSBEvent: (() -> Void)?
+    var onPlugged: (() -> Void)?
+    var onUnplugged: (() -> Void)?
 
     func start() {
-        guard !isRunning else { return }
+        guard notifyPort == nil else { return }
+        notifyPort = IONotificationPortCreate(kIOMainPortDefault)
+        guard let notifyPort else { return }
+        CFRunLoopAddSource(CFRunLoopGetMain(),
+                           IONotificationPortGetRunLoopSource(notifyPort).takeUnretainedValue(),
+                           .defaultMode)
 
-        // Strategy 1: IOKit notifications
-        setupIOKitNotifications()
-
-        // Strategy 2: NSWorkspace volume mount/unmount (catches USB drives)
-        let ws = NSWorkspace.shared.notificationCenter
-        ws.addObserver(self, selector: #selector(deviceMounted), name: NSWorkspace.didMountNotification, object: nil)
-        ws.addObserver(self, selector: #selector(deviceMounted), name: NSWorkspace.didUnmountNotification, object: nil)
-
-        // Strategy 3: Poll for device count changes every 2 seconds
-        // This is the most reliable fallback for M5 Thunderbolt USB-C
-        lastDeviceCount = countUSBDevices()
-        pollTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.checkForDeviceChanges() }
+        let selfPtr = Unmanaged.passUnretained(self).toOpaque()
+        for (notification, callback) in [
+            (kIOPublishNotification, Self.publishCallback),
+            (kIOTerminatedNotification, Self.terminateCallback),
+        ] {
+            guard let matching = IOServiceMatching("IOUSBHostDevice") else { continue }
+            var iter: io_iterator_t = 0
+            guard IOServiceAddMatchingNotification(notifyPort, notification, matching, callback,
+                                                   selfPtr, &iter) == KERN_SUCCESS else { continue }
+            // Drain the initial matches so devices already present don't fire.
+            _ = Self.devices(in: iter)
+            iterators.append(iter)
         }
-        pollTimer?.tolerance = 0.5
-
-        isRunning = true
-        log("USB monitor started (IOKit + NSWorkspace + polling)")
+        log("USB monitor started")
     }
 
     func stop() {
-        guard isRunning else { return }
-        pollTimer?.invalidate()
-        pollTimer = nil
+        guard let port = notifyPort else { return }
         for iter in iterators { IOObjectRelease(iter) }
         iterators.removeAll()
-        if let port = notifyPort { IONotificationPortDestroy(port); notifyPort = nil }
-        NSWorkspace.shared.notificationCenter.removeObserver(self)
-        isRunning = false
+        IONotificationPortDestroy(port)
+        notifyPort = nil
         log("USB monitor stopped")
     }
 
-    private func emit(_ source: String) {
-        // Keep the device count in sync so the poller doesn't re-report this change.
-        lastDeviceCount = countUSBDevices()
+    // Delivered on the main run loop (source added in start()).
+    private static let publishCallback: IOServiceMatchingCallback = { refcon, iterator in
+        guard let refcon else { return }
+        let found = devices(in: iterator)
+        let monitor = Unmanaged<USBMonitor>.fromOpaque(refcon).takeUnretainedValue()
+        MainActor.assumeIsolated { monitor.published(found) }
+    }
+
+    private static let terminateCallback: IOServiceMatchingCallback = { refcon, iterator in
+        guard let refcon else { return }
+        let found = devices(in: iterator)
+        let monitor = Unmanaged<USBMonitor>.fromOpaque(refcon).takeUnretainedValue()
+        MainActor.assumeIsolated { monitor.terminated(found) }
+    }
+
+    private func published(_ devices: [Device]) {
         let now = Date()
-        guard now.timeIntervalSince(lastEventTime) >= Self.debounceInterval else { return }
-        lastEventTime = now
-        log("USB event (\(source))")
-        onUSBEvent?()
-    }
-
-    private func setupIOKitNotifications() {
-        notifyPort = IONotificationPortCreate(kIOMainPortDefault)
-        guard let notifyPort = notifyPort else { return }
-
-        let runLoopSource = IONotificationPortGetRunLoopSource(notifyPort).takeUnretainedValue()
-        CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .defaultMode)
-
-        let selfPtr = Unmanaged.passUnretained(self).toOpaque()
-        let watchClasses = ["IOUSBHostDevice", "IOUSBHostInterface"]
-
-        for className in watchClasses {
-            for notification in [kIOPublishNotification, kIOTerminatedNotification] {
-                guard let matching = IOServiceMatching(className) else { continue }
-                var iter: io_iterator_t = 0
-                let kr = IOServiceAddMatchingNotification(
-                    notifyPort, notification, matching,
-                    { (refcon, iterator) in
-                        var found = false
-                        var entry = IOIteratorNext(iterator)
-                        while entry != 0 {
-                            found = true
-                            IOObjectRelease(entry)
-                            entry = IOIteratorNext(iterator)
-                        }
-                        guard found, let refcon else { return }
-                        // Delivered on the main run loop (source added above).
-                        let monitor = Unmanaged<USBMonitor>.fromOpaque(refcon).takeUnretainedValue()
-                        MainActor.assumeIsolated { monitor.emit("IOKit notification") }
-                    },
-                    selfPtr, &iter
-                )
-                if kr == KERN_SUCCESS {
-                    // Drain the initial matches so existing devices don't fire.
-                    var e = IOIteratorNext(iter)
-                    while e != 0 { IOObjectRelease(e); e = IOIteratorNext(iter) }
-                    iterators.append(iter)
-                }
+        var fresh: [Device] = []
+        for device in devices {
+            publishedAt[device.key] = now
+            if let removed = removedAt[device.key], now.timeIntervalSince(removed) < Self.flapWindow {
+                continue
             }
+            fresh.append(device)
         }
+        guard !fresh.isEmpty, now.timeIntervalSince(lastPlug) >= Self.debounceInterval else { return }
+        lastPlug = now
+        log("USB plugged in: \(fresh.map(\.name).joined(separator: ", "))")
+        onPlugged?()
     }
 
-    @objc private func deviceMounted(_ notification: Notification) {
-        emit("volume mount/unmount")
-    }
-
-    private func countUSBDevices() -> Int {
-        var total = 0
-        for cls in ["IOUSBHostDevice", "IOUSBHostInterface", "AppleUSBHostPort"] {
-            var iter: io_iterator_t = 0
-            guard let matching = IOServiceMatching(cls) else { continue }
-            if IOServiceGetMatchingServices(kIOMainPortDefault, matching, &iter) == KERN_SUCCESS {
-                var svc = IOIteratorNext(iter)
-                while svc != 0 { total += 1; IOObjectRelease(svc); svc = IOIteratorNext(iter) }
-                IOObjectRelease(iter)
+    private func terminated(_ devices: [Device]) {
+        let now = Date()
+        var gone: [Device] = []
+        for device in devices {
+            removedAt[device.key] = now
+            if let published = publishedAt[device.key], now.timeIntervalSince(published) < Self.flapWindow {
+                continue
             }
+            gone.append(device)
         }
-        return total
+        guard !gone.isEmpty, now.timeIntervalSince(lastUnplug) >= Self.debounceInterval else { return }
+        lastUnplug = now
+        log("USB unplugged: \(gone.map(\.name).joined(separator: ", "))")
+        onUnplugged?()
     }
 
-    private func checkForDeviceChanges() {
-        let current = countUSBDevices()
-        guard current != lastDeviceCount else { return }
-        let previous = lastDeviceCount
-        emit("poll: \(previous) -> \(current) devices")
+    /// Consumes the iterator. A terminated device's properties are still readable here.
+    nonisolated private static func devices(in iterator: io_iterator_t) -> [Device] {
+        var result: [Device] = []
+        var entry = IOIteratorNext(iterator)
+        while entry != 0 {
+            func property(_ key: String) -> Any? {
+                IORegistryEntryCreateCFProperty(entry, key as CFString, kCFAllocatorDefault, 0)?
+                    .takeRetainedValue()
+            }
+            let location = (property("locationID") as? NSNumber)?.stringValue ?? "?"
+            let vendor = (property("idVendor") as? NSNumber)?.stringValue ?? "?"
+            let product = (property("idProduct") as? NSNumber)?.stringValue ?? "?"
+            let name = property("USB Product Name") as? String ?? "USB device"
+            result.append(Device(key: "\(location):\(vendor):\(product)", name: name))
+            IOObjectRelease(entry)
+            entry = IOIteratorNext(iterator)
+        }
+        return result
     }
 }
